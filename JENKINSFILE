@@ -14,28 +14,12 @@ pipeline {
             }
         }
     
-        stage('Build') {
+		stage('Unit') {
             steps {
                 bat '''
                     whoami
                     hostname
                 '''
-                echo WORKSPACE
-                echo 'Eip, this is Python mai fren, nothing to comppile!!'
-                echo WORKSPACE
-                bat 'dir'
-            }
-        }
-        
-        // create test stages in parallel
-        stage('Run Tests') {
-            parallel {
-                stage('Unit') {
-                    steps {
-                        bat '''
-                            whoami
-                            hostname
-                        '''
                         echo WORKSPACE
                         catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {        
                             bat '''
@@ -44,45 +28,20 @@ pipeline {
                             '''
                         }
                     }
-                }
-                
-                stage('Cobertura'){
-                    steps {
-                        bat '''
-                        coverage run --branch --source=app --omit=app\\__init__.py,app\\api.py -m pytest test\\unit
-                        coverage xml
-                        '''
-                        cobertura coberturaReportFile: 'coverage.xml'
-                    }
-                }
-            }
-        }
-        
-        stage('Results') {
-            steps{
+		}
+		
+		stage('Coverage') {
+            steps {
                 bat '''
-                    whoami
-                    hostname
+                    coverage run --branch --source=app --omit=app\\init.py,app\\api.py -m pytest test\\unit
+                    coverage xml
                 '''
-                echo WORKSPACE
-                junit 'result*.xml'
-            }
-        }
-    
-        stage('deleteDir_agent1') {
-                steps {
-                    bat 'dir *.*' // podríamos separarlo en otro etapa, pero lo dejamos aquí
-                    deleteDir()
-                    bat 'dir *.*' // realmente es para comprobar, una vez la primera ejecución vemos que funciona estas líneas deberían ir fuera
-                }
-        }
-        stage('deleteDir_agent2') {
-                steps {
-                    bat 'dir *.*'
-                    deleteDir()
-                    bat 'dir *.*'
-                }
-        }
-        // ... lo ejecutamos tantas veces agentes como haya
-    }
-}
+                cobertura(
+                    coberturaReportFile: 'coverage.xml', 
+                    conditionalCoverageTargets: '100,80,95', 
+                    failUnstable: false
+                )
+			}
+		}
+	}
+}	
