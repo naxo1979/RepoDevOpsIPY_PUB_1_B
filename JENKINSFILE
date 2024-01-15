@@ -32,16 +32,15 @@ pipeline {
 
 		stage('Rest') {
 					steps {
-						bat '''
-						set FLASK_APP=app\\api.py
-						set FLASK_ENV=master
-						start cmd /c "flask run &"
-						start java -jar C:\\DevOps\\Jenkins\\root\\workspace\\wiremock-standalone-3.3.1.jar --port 9090 --root-dir C:\\DevOps\\Jenkins\\root\\workspace
-						set PYTHONPATH=%WORKSPACE%
-						ping 127.0.0.1 -n 10 > nul
-						C:\\Users\\Nax\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\pytest --junitxml=result-rest.xml test\\rest
-						C:\\Users\\Nax\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\junit 'result*.xml' 
-						'''
+                bat '''
+                    set FLASK_APP=app\\api.py
+                    set FLASK_ENV=development
+                    start cmd /c "flask run &"
+                    ping 127.0.0.1 -n 10
+                    start cmd /c "java -jar C:\\Users\\JoseLuis\\Downloads\\wiremock-standalone-3.3.1.jar --port 9090 --root-dir C:\\Users\\JoseLuis\\Downloads"
+                    set PYTHONPATH=%WORKSPACE%
+                    C:\\Users\\Nax\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\pytest --junitxml=result-unit.xml test\\unit
+                '''
 					}  
 				}	
 
@@ -94,7 +93,7 @@ pipeline {
 					bat '''
 					
 						start /B cmd /c "SET FLASK_APP=app\\api.py && "C:\\Users\\Nax\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\flask" run"
-						ping 127.0.0.1 -n 10 > nul
+						ping 127.0.0.1 -n 10
 						"C:\\Users\\Nax\\Desktop\\Master Devops\\apache-jmeter-5.6.3\\bin\\jmeter" -n -t test\\jmeter\\flask.jmx -f -l flask.jtl
                     '''
                     
