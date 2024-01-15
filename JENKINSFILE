@@ -40,7 +40,7 @@ pipeline {
                     start cmd /c "java -jar C:\\Users\\JoseLuis\\Downloads\\wiremock-standalone-3.3.1.jar --port 9090 --root-dir C:\\Users\\JoseLuis\\Downloads"
                     set PYTHONPATH=%WORKSPACE%
                     C:\\Users\\Nax\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\pytest --junitxml=result-unit.xml test\\unit
-					C:\\Users\\Nax\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\junit 'result*.xml' 
+					junit 'result*.xml' 
                 '''
 					}  
 				}	
