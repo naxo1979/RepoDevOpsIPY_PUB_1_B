@@ -13,6 +13,16 @@ pipeline {
                 git 'https://github.com/naxo1979/RepoDevOpsIPY_PUB_1_B'
             }
         }
+		
+		stage('Static') {
+            steps {
+                bat '''
+                    C:\\Users\\Nax\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\flake8 --exit-zero --format=pylint app > flake8.out
+                '''
+                recordIssues tools: [flake8(name: 'Flake8', pattern: 'flake8.out')], qualityGates: [[threshold: 8, type: 'TOTAL', unstable: true, failure: true], [threshold: 10, type: 'TOTAL', unstable: false, failure: true]], ignoreQualityGate: true
+            }
+        }
+				
     
 		stage('Unit') {
             steps {
@@ -24,7 +34,7 @@ pipeline {
                         catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {        
                             bat '''
                                 SET PYTHONPATH=%WORKSPACE%
-                                pytest --junitxml=result-unit.xml test\\unit
+                                C:\\Users\\Nax\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\pytest --junitxml=result-unit.xml test\\unit
                             '''
                         }
                     }
@@ -33,8 +43,8 @@ pipeline {
 		stage('Coverage') {
             steps {
                 bat '''
-                    coverage run --branch --source=app --omit=app\\init.py,app\\api.py -m pytest test\\unit
-                    coverage xml
+                    C:\\Users\\Nax\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\coverage run --branch --source=app --omit=app\\init.py,app\\api.py -m pytest test\\unit
+                    C:\\Users\\Nax\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\coverage xml
                 '''
                 cobertura(
                     coberturaReportFile: 'coverage.xml', 
@@ -43,5 +53,34 @@ pipeline {
                 )
 			}
 		}
+		
+		 stage('Security') {
+			steps {
+				bat '''
+					C:\\Users\\Nax\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\bandit --exit-zero -r . -f custom -o bandit.out --severity-level medium --msg-template "{abspath}:{line}: [{test_id}] {msg}
+				'''
+				recordIssues(
+				tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')],
+				qualityGates: [
+                [threshold: 2, type: 'TOTAL', unstable: true, failure: false],
+                [threshold: 4, type: 'TOTAL', unstable: false, failure: true]
+					]
+				)
+			}
+		}
+		
+		stage('Performance') {
+            steps {
+
+					bat 'start /B cmd /c "SET FLASK_APP=app\\api.py && "C:\\Users\\Nax\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\flask" run"'
+					bat 'ping 127.0.0.1 -n 10 > nul'
+
+					bat '''
+						"C:\\Users\\Nax\\Desktop\\Master Devops\\apache-jmeter-5.6.3\\bin\\jmeter" -n -t test\\jmeter\\flask.jmx -f -l flask.jtl
+                    '''
+                    
+                    perfReport sourceDataFiles:'flask.jtl'
+				}
+			}
+		}
 	}
-}	
