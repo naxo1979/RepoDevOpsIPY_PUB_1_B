@@ -1,0 +1,121 @@
+pipeline {
+    agent any
+    
+    stages {
+        stage('Get Code'){
+            steps {
+                // get code from repo
+                bat '''
+                    whoami
+                    hostname
+                '''
+                echo WORKSPACE
+                git 'https://github.com/naxo1979/RepoDevOpsIPY_PUB_1_B'
+            }
+        }
+		 		
+		stage('Tests') {
+		
+			parallel {
+				stage('Unit') {
+					agent { label 'SecundarioA' }
+					steps {
+						bat '''
+							whoami
+							hostname
+						'''
+								echo WORKSPACE
+								catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {        
+									bat '''
+										SET PYTHONPATH=%WORKSPACE%
+										C:\\Users\\Nax\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\pytest --junitxml=result-unit.xml test\\unit
+									'''
+								}
+							}
+					}
+			
+					stage('Rest') {
+					agent { label 'SecundarioB' }
+					steps {
+						bat '''
+							set FLASK_APP=app\\api.py
+							set FLASK_ENV=development
+							start cmd /c "flask run &"
+							ping 127.0.0.1 -n 10
+							start cmd /c "java -jar C:\\DevOps\\Jenkins\\root\\workspace\\wiremock-standalone-3.3.1.jar --port 9090 --root-dir C:\\DevOps\\Jenkins\\root\\workspace"
+							set PYTHONPATH=%WORKSPACE%
+							C:\\Users\\Nax\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\pytest --junitxml=result-unit.xml test\\unit
+								junit 'result*.xml' 
+						'''
+						}  
+					}	
+				}
+			}
+		stage('Calidad') {
+			parallel {
+				stage('Static') {
+				agent { label 'SecundarioA' }
+					steps {
+						bat '''
+							C:\\Users\\Nax\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\flake8 --exit-zero --format=pylint app > flake8.out
+						'''
+						recordIssues tools: [flake8(name: 'Flake8', pattern: 'flake8.out')], qualityGates: [[threshold: 10, type: 'TOTAL', unstable: true, failure: true], [threshold: 12, type: 'TOTAL', unstable: false, failure: true]], ignoreQualityGate: true
+					}
+				}
+						
+			
+			
+				
+				stage('Coverage') {
+				agent { label 'SecundarioB' }
+					steps {
+						bat '''
+							C:\\Users\\Nax\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\coverage run --branch --source=app --omit=app\\init.py,app\\api.py -m pytest test\\unit
+							C:\\Users\\Nax\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\coverage xml
+						'''
+						cobertura(
+							coberturaReportFile: 'coverage.xml', 
+							conditionalCoverageTargets: '100,80,95', 
+							failUnstable: false
+						)
+					}
+				}
+			}
+		}
+		stage('Rendimiento') {
+			parallel {
+				
+				stage('Security') {
+				agent { label 'SecundarioA' }
+					steps {
+						bat '''
+							C:\\Users\\Nax\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\bandit --exit-zero -r . -f custom -o bandit.out --severity-level medium --msg-template "{abspath}:{line}: [{test_id}] {msg}
+						'''
+						recordIssues(
+						tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')],
+						qualityGates: [
+						[threshold: 3, type: 'TOTAL', unstable: true, failure: false],
+						[threshold: 4, type: 'TOTAL', unstable: false, failure: true]
+							]
+						)
+					}
+				}
+				
+				stage('Performance') {
+				agent { label 'SecundarioB' }
+					steps {
+		
+							bat '''
+							
+								start /B cmd /c "SET FLASK_APP=app\\api.py && "C:\\Users\\Nax\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\flask" run"
+								ping 127.0.0.1 -n 10
+								"C:\\Users\\Nax\\Desktop\\Master Devops\\apache-jmeter-5.6.3\\bin\\jmeter" -n -t test\\jmeter\\flask.jmx -f -l flask.jtl
+							'''
+							
+							perfReport sourceDataFiles:'flask.jtl'
+						}
+					}
+				}
+			}
+		}
+	}
